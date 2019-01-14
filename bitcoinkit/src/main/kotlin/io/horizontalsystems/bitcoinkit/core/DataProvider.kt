@@ -8,11 +8,10 @@ import io.reactivex.disposables.Disposable
 import io.reactivex.subjects.PublishSubject
 import io.realm.OrderedCollectionChangeSet
 import io.realm.OrderedCollectionChangeSet.State
-import io.realm.Realm
 import io.realm.RealmResults
 import java.util.concurrent.TimeUnit
 
-class DataProvider(private val realm: Realm, private val listener: Listener, private val unspentOutputProvider: UnspentOutputProvider) {
+class DataProvider(private val realmFactory: RealmFactory, private val listener: Listener, private val unspentOutputProvider: UnspentOutputProvider) {
 
     interface Listener {
         fun onTransactionsUpdate(inserted: List<TransactionInfo>, updated: List<TransactionInfo>, deleted: List<Int>)
@@ -20,6 +19,7 @@ class DataProvider(private val realm: Realm, private val listener: Listener, pri
         fun onLastBlockInfoUpdate(blockInfo: BlockInfo)
     }
 
+    private val realm = realmFactory.realm
     private val transactionRealmResults = getMyTransactions()
     private val blockRealmResults = getBlocks()
     private val feeRateRealmResults = getFeeRate()
@@ -30,7 +30,7 @@ class DataProvider(private val realm: Realm, private val listener: Listener, pri
     var balance: Long = unspentOutputProvider.getBalance()
         private set
 
-    val transactions get() = transactionRealmResults.mapNotNull { transactionInfo(it) }
+    val transactions get() = getMyTransactions().mapNotNull { transactionInfo(it) }
 
     var lastBlockHeight: Int = blockRealmResults.lastOrNull()?.height ?: 0
         private set
@@ -149,7 +149,7 @@ class DataProvider(private val realm: Realm, private val listener: Listener, pri
     }
 
     private fun getMyTransactions(): RealmResults<Transaction> {
-        return realm.where(Transaction::class.java)
+        return realmFactory.realm.where(Transaction::class.java)
                 .equalTo("isMine", true)
                 .findAll()
     }
